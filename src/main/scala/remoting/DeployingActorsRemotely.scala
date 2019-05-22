@@ -9,6 +9,8 @@ object DeployingActorsRemotely_LocalApp extends App {
 
   val simpleActor = system.actorOf(Props[SimpleActor], "remoteActor") // /user/remoteActor
   simpleActor ! "hello, remote actor!"
+
+  println(simpleActor)
 }
 
 object DeployingActorsRemotely_RemoteApp extends App {
