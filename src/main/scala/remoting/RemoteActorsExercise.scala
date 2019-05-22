@@ -1,6 +1,6 @@
 package remoting
 
-import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Props}
+import akka.actor.{Actor, ActorIdentity, ActorLogging, ActorRef, ActorSystem, Identify, Props}
 import com.typesafe.config.ConfigFactory
 import remoting.MasterApp.config
 import remoting.WordCountDomain.Initialize
@@ -38,7 +38,23 @@ class WordCountMaster extends Actor with ActorLogging {
 
   override def receive: Receive = {
     case Initialize(nWorkers) =>
+      initializeWorkers(nWorkers)
+  }
 
+  def initializeWorkers(workersCount: Int): Unit = {
+    (1 to workersCount).foreach { i =>
+      val selection = context.actorSelection(s"akka://WorkersSystem@localhost:2552/user/wordCountWorker$i")
+      selection ! Identify(42)
+    }
+
+    context.become(initialize(List.empty[ActorRef], workersCount))
+  }
+
+  def initialize(workers: List[ActorRef], remainingWorkers: Int): Receive = {
+    case ActorIdentity(42, Some(actorRef)) if remainingWorkers > 1 =>
+      context.become(initialize(actorRef :: workers, remainingWorkers - 1))
+    case ActorIdentity(42, Some(actorRef)) if remainingWorkers == 1 =>
+      context.become(online(actorRef :: workers, 0, 0))
   }
 
   def online(workers: List[ActorRef], remainingTasks: Int, totalCount: Int): Receive = {
@@ -92,6 +108,6 @@ object WorkersApp extends App {
 
 }
 
-  class RemoteActorsExercise {
+class RemoteActorsExercise {
 
 }
