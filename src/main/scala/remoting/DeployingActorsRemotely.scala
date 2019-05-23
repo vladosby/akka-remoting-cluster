@@ -1,6 +1,6 @@
 package part2_remoting
 
-import akka.actor.{ActorSystem, Address, AddressFromURIString, Deploy, Props}
+import akka.actor.{Actor, ActorLogging, ActorSystem, Address, AddressFromURIString, Deploy, PoisonPill, Props, Terminated}
 import akka.remote.RemoteScope
 import akka.routing.FromConfig
 import com.typesafe.config.ConfigFactory
@@ -25,6 +25,21 @@ object DeployingActorsRemotely_LocalApp extends App {
 
   val poolRouter = system.actorOf(FromConfig.props(Props[SimpleActor]), "routerWithRemoteChildren")
   (1 to 10).map(i => s"message $i").foreach(poolRouter ! _)
+
+  class ParentActor extends Actor with ActorLogging {
+    override def receive: Receive = {
+      case  "create" => log.info("Create remote child")
+        val child = context.actorOf(Props[SimpleActor], "remoteChild")
+        context.watch(child)
+      case Terminated(ref) =>
+        log.warning(s"Child $ref terminated")
+    }
+  }
+
+  val parentActor = system.actorOf(Props[ParentActor], "watcher")
+  parentActor ! "create"
+  Thread.sleep(1000)
+  system.actorSelection("akka://RemoteActorSystem@localhost:2552/remote/akka/LocalActorSystem@localhost:2551/user/watcher/remoteChild") ! PoisonPill
 }
 
 object DeployingActorsRemotely_RemoteApp extends App {
