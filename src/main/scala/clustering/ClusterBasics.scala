@@ -22,8 +22,10 @@ class ClusterSubscriber extends Actor with ActorLogging {
   override def receive: Receive = {
     case MemberJoined(member) =>
       log.info(s"New member is joined to cluster${member.address}")
+    case MemberUp(member) if member.hasRole("numberCruncher") =>
+      log.info(s"Joined new member ${member.address}")
     case MemberUp(member) =>
-      log.info(s"New member is UP ${member.address}")
+      log.info(s"New member is UP ${member.address} ${member.getRoles}")
     case MemberRemoved(member, previousStatus) =>
       log.info(s"Poor ${member.address}, it was removed from previous status $previousStatus")
     case UnreachableMember(member) =>
