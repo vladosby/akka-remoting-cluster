@@ -1,6 +1,6 @@
 package clustering
 
-import akka.actor.{Actor, ActorLogging, ActorSystem, Props}
+import akka.actor.{Actor, ActorLogging, ActorSystem, Address, Props}
 import akka.cluster.Cluster
 import akka.cluster.ClusterEvent._
 import com.typesafe.config.ConfigFactory
@@ -48,4 +48,17 @@ object ClusterBasics extends App {
 
   startCluster(List(2551, 2552, 0))
 
+}
+
+object ManualRegistration extends App {
+  val system = ActorSystem("BaseCluster", ConfigFactory.load("clustering/clusteringBasics.conf")
+    .getConfig("manualRegistration"))
+
+  val cluster = Cluster(system)
+  cluster.joinSeedNodes(List(
+    Address("akka", "BaseCluster", "localhost", 2551),
+    Address("akka", "BaseCluster", "localhost", 2552)
+  ))
+
+  system.actorOf(Props[ClusterSubscriber], "clusterSubscriber")
 }
