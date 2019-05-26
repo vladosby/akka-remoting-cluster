@@ -1,6 +1,7 @@
 package remoting
 
 import akka.actor.{Actor, ActorIdentity, ActorLogging, ActorRef, ActorSystem, Identify, Props}
+import akka.routing.FromConfig
 import com.typesafe.config.ConfigFactory
 import remoting.MasterApp.config
 import remoting.WordCountDomain.Initialize
@@ -36,7 +37,25 @@ class WordCountMaster extends Actor with ActorLogging {
 
   import WordCountDomain._
 
-  override def receive: Receive = {
+  val workerRouter = context.actorOf(FromConfig.props(Props[WordCountWorker]), "workerRouter")
+  override def receive: Receive = onlineWithRouter(0, 0)
+
+  def onlineWithRouter(remainingTasks: Int, totalCount: Int): Receive = {
+    case text: String =>
+      val sentences = text.split("\\. ")
+      sentences.foreach(s => workerRouter ! WordCountTask(s))
+      context.become(onlineWithRouter(remainingTasks + sentences.length, totalCount))
+
+    case WordCountResult(count) =>
+      if (remainingTasks == 1) {
+        log.info(s"Total result: ${totalCount + count}")
+        context.stop(self)
+      } else {
+        context.become(onlineWithRouter(remainingTasks - 1, totalCount + count))
+      }
+  }
+
+  def waitingToInitializeWorkers(nWorkers: Int): Receive = {
     case Initialize(nWorkers) =>
       val workers = (1 to nWorkers).map(id => context.actorOf(Props[WordCountWorker], s"wordCountWorker$id"))
       context.become(online(workers.toList, 0, 0))
