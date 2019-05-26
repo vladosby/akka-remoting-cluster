@@ -38,7 +38,9 @@ class WordCountMaster extends Actor with ActorLogging {
 
   override def receive: Receive = {
     case Initialize(nWorkers) =>
-      initializeWorkers(nWorkers)
+      val workers = (1 to nWorkers).map(id => context.actorOf(Props[WordCountWorker], s"wordCountWorker$id"))
+      context.become(online(workers.toList, 0, 0))
+//      initializeWorkers(nWorkers)
   }
 
   def initializeWorkers(workersCount: Int): Unit = {
